@@ -12,48 +12,38 @@
 #define CMD_MAX 10
 
 //This forks
-int shell_launch(char **args)
+int fork_shell(char **args , int rd, int wd)
 {
-  printf("FORKED\n");
   pid_t pid, wpid;
   int status;
-
   pid = fork();
   if (pid == 0) {
     // Child process to run code
-    // if (execvp(args[0], args) == -1) {
-    //   printf("error with child process\n");
-    // }
-    exit(EXIT_FAILURE);
+    if (rd != STDIN_FILENO){
+      if(dup2(rd, STDIN_FILENO) != STDIN_FILENO){
+        fprintf(stderr, "Error: failed to redirect standard input\n");
+        return -1;
+      }
+    }
+
+    if (wd != STDOUT_FILENO){
+      printf("redirect stdout to %d.", wd);
+      if(dup2(wd, STDOUT_FILENO) != STDOUT_FILENO){
+        fprintf(stderr, "Error: failed to redirect standard output\n");
+        return -1;
+      }
+    }
+    execvp(args[0], args);
+
   } else if (pid < 0) {
     // Error forking
     printf("Error Forking\n");
   } else {
-    // Parent process to run code
-    // do {
-    //   wpid = waitpid(pid, &status, WUNTRACED);
-    // } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    //Parent process to run code
+    do {
+      wpid = waitpid(pid, &status, WUNTRACED);
+    } while (!WIFEXITED(status) && !WIFSIGNALED(status));
   }
-
-  return 1;
-}
-
-// ls command
-char *listCurrentDirectory()
-{
-  char cwd[50];
-  getcwd(cwd, sizeof(cwd));
-  DIR *mydir;
-  struct dirent *myfile;
-
-  char buf[512];
-  mydir = opendir(cwd);
-  while((myfile = readdir(mydir)) != NULL)
-  {
-    printf(" %s ", myfile->d_name);
-  }
-  printf("\n");
-  closedir(mydir);
 }
 
 
@@ -76,9 +66,17 @@ int make_tokenlist(char *buf, char *tokens[])
   return i;
 }
 
+void clean(char **var) {
+  int i = 0;
+  while(var[i] != NULL) {
+    var[i] = NULL;
+    i++;
+  }
+}
 
 
-void main(void)
+
+int main(void)
 {
 
   char input_line[MAX], *tokens[CMD_MAX], *cmdHistory[10];
@@ -87,43 +85,77 @@ void main(void)
     cmdHistory[i] = NULL;
   }
 
-
   while(1){
     char * loginName = getlogin();
     printf("%s>",loginName);
     if (fgets(input_line,MAX,stdin) != NULL){
-      n= make_tokenlist(input_line, tokens);
-
       if (input_line[strlen(input_line) - 1] == '\n'){
         input_line[strlen(input_line) - 1] = '\0';
-
-        /* NULL to `free` is a NO-OP */
-        free(cmdHistory[currentCommand]);
-        cmdHistory[currentCommand] = strdup(input_line);
-        currentCommand = (currentCommand + 1);
       }
+      free(cmdHistory[currentCommand]);
+      cmdHistory[currentCommand] = strdup(input_line);
+      currentCommand = (currentCommand + 1);
+      n= make_tokenlist(input_line, tokens);
     }
     else
     printf("huh?\n");
 
     for (i = 0; i < n; i++){
-      if (strstr(tokens[i], "ls") != NULL) {
-        listCurrentDirectory();
-        //shell_launch("ls");
-      }else if (strstr(tokens[i], "exit") != NULL) {
-        //user wants to exit the shell
-        printf("Command History before closig\n");
+      if (strstr(tokens[i], "exit") != NULL) {
+        exit(0);
+      }else
+      //user wants command history
+      if (strstr(tokens[i], "history") != NULL) {
         int k = 0;
         while(cmdHistory[k] != NULL) {
-
           printf("%s\n",cmdHistory[k]);
           k++;
         }
-        exit(0);
       }
-      //printf("extracted token is %s\n", tokens[i]);
-
-
+      break;
     }
+
+
+    //check for | command
+    // for (size_t z = 0; z < n; z++) {
+    //   if(strstr(tokens[z], "|") != NULL) {
+    //     char *CMDS[z-1];
+    //     for (size_t i = 0; i < z; i++) {
+    //       CMDS[i] = tokens[i];
+    //     }
+    //     CMDS[z] = NULL;
+    //     z++;
+    //     fork_shell(CMDS);
+    //   }
+    // }
+
+
+    int pipe_index = 2;
+      int rd = STDIN_FILENO;
+      int wd = STDOUT_FILENO;
+      int fds[2];
+      if (pipe(fds) != 0) {
+        fprintf(stderr, "Error: unable to pipe command '%s'\n", tokens[0]);
+        return -1;
+      }
+
+      wd = fds[1]; /*file descriptor for the write end of the pipe*/
+
+      // delete the pipe symbol and insert a null to terminate the
+      // first command's argument list
+      tokens[pipe_index] = NULL;
+      tokens[4] = NULL;
+
+      // run first command: read from STDIN and write to the pipe
+      fork_shell(tokens, rd, wd);
+      close(fds[1]);
+
+      rd = fds[0];
+      wd = STDOUT_FILENO;
+
+      // run the second command: read from the pipe and write to STDOUT
+      // the argument for this command starts at pipe_index+1
+      fork_shell(tokens+pipe_index+1, rd, wd);
+
   }
 }
