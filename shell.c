@@ -34,6 +34,8 @@ int fork_shell(char **args , int rd, int wd)
       }
     }
     execvp(args[0], args);
+    fprintf (stderr,  "Commmand Not supported\n");
+    abort ();
 
   } else if (pid < 0) {
     // Error forking
@@ -117,17 +119,16 @@ int main(void)
 
 
     //check for | command
-    // for (size_t z = 0; z < n; z++) {
-    //   if(strstr(tokens[z], "|") != NULL) {
-    //     char *CMDS[z-1];
-    //     for (size_t i = 0; i < z; i++) {
-    //       CMDS[i] = tokens[i];
-    //     }
-    //     CMDS[z] = NULL;
-    //     z++;
-    //     fork_shell(CMDS);
-    //   }
-    // }
+    int containsPipe = 0;
+    for (size_t z = 0; z < n; z++) {
+      if(strstr(tokens[z], "|") != NULL) {
+        containsPipe = 1;
+        }
+      }
+      if (containsPipe == 0) {
+        fork_shell(tokens, 0, 0);
+      }
+
 
 
     int pipe_index = 2;
