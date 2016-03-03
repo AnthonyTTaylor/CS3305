@@ -13,17 +13,6 @@ void funcCall()
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
 int main(void)
 {
 start = clock();
