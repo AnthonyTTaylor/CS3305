@@ -8,34 +8,19 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <signal.h>
 
+void SIGINTHandler(int);
+int globalPid;
 
 int fork_shell(char **args)
 {
   pid_t pid, wpid,sid;
   int status;
   pid = fork();
-  //printf("PID Parent:%d\n", pid);
+  // Child process to run code
   if (pid == 0) {
-    /* Create a new SID for the child process */
-
-    // if (sid < 0) {
-    //   exit(EXIT_FAILURE);
-    // }else{.
-    sid = setsid();
-    if(sid < 0)
-    {
-    exit(1);
-    }
-      printf("Child PID:%d\n", pid);
-      system("/home/vagrant/CS3305/Asn2/cpuTimeWaste");
-      umask(0);
-      //set new session
-
-      chdir("/");
-      close(STDIN_FILENO);
-      close(STDOUT_FILENO);
-      close(STDERR_FILENO);
+    execvp(args[0], args);
   } else if (pid < 0) {
     // Error forking
     printf("Error Forking\n");
@@ -45,35 +30,68 @@ int fork_shell(char **args)
   return pid;
 }
 
+int make_tokenlist(char *buf, char *dataFields[])
+{
 
+  char input_line[1024];
+  char *line;
+  int i,n;
 
+  i = 0;
+  line =   buf;
+  dataFields[i] = strtok(line, " ");
+  do  {
+    i++;
+    line = NULL;
+    dataFields[i] = strtok(line, " ");
+  } while(dataFields[i] != NULL);
+
+  return i;
+}
+
+void  SIGINTHandler(int sig)
+{
+  signal(sig, SIG_IGN);
+  //  char *killPid;
+  //  snprintf(killPid, sizeof killPid, "%s%d", "sudo kill -9 ", globalPid);
+  //  char *args[] = {killPid, (char*)NULL};
+  //  execvp(args[0], args);
+  exit(0);
+}
 
 int main(int argc, char **argv)
 {
-
+  char buffer[1024], *dataFields[60];
   char *inputFilePath;
   char actualpath [4092];
   inputFilePath = realpath(argv[1], actualpath);
 
   int pidInt;
-  fork_shell(&argv[1]);
-  sleep(3);
-  //buffer[1024] = getpid(actualpath);
-  printf("%s\n", inputFilePath );
+  pidInt = fork_shell(&argv[1]);
+  globalPid = pidInt;
 
-  pid_t pid = strtoul(inputFilePath, NULL, 10);
+  char str[1024];
+  snprintf(str, sizeof str, "%s%d%s", "/proc/", pidInt , "/stat");
+  signal(SIGINT, SIGINTHandler);
+  while(1){
+    FILE *statFile = NULL;
+    statFile = fopen(str, "r");
+    fread(buffer, 500, 1, statFile);
+    int n = make_tokenlist(buffer, dataFields);
+    // printf("%s\n",dataFields[13]);
+    // printf("%s\n",dataFields[14]);
 
-  system(actualpath);
-  //execvp("/bin/sh", argv[1]);
-  printf("%l\n",pid);
-  // if (fgets(input_line,MAX,stdin) != NULL){
-  // }
-
-
+    int l = atol(dataFields[13]);
+    int m = atol(dataFields[14]);
+    printf("utime = %ld\r\n", l/sysconf(_SC_CLK_TCK));
+    printf("stime = %ld\r\n",  m/sysconf(_SC_CLK_TCK));
+    sleep(1);
+    system("clear");
+  }
 
   //
   // double user_util = 100 * (utime_after - utime_before) / (time_total_after - time_total_before);
   // double sys_util = 100 * (stime_after - stime_before) / (time_total_after - time_total_before);
 
-
+  return 0;
 }
