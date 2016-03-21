@@ -153,9 +153,7 @@ int main(int argc, char *argv[])
 
 
   listen(listenfd, 10);
-  /*Accept connection and call the doProcessing function */
 
-  //Accept and incoming connection
   puts("Waiting for incoming connections...");
   c = sizeof(struct sockaddr_in);
   pthread_t thread_id;
@@ -171,12 +169,6 @@ int main(int argc, char *argv[])
             return 1;
         }
   }
-
-  // if( pthread_create( &thread_id , NULL ,  doProcessing , (void*) &client_sock) < 0)
-  // {
-  //   perror("could not create thread");
-  //   return 1;
-  // }
   puts("Handler assigned");
 
   if (client_sock < 0)

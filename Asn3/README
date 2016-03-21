@@ -1,0 +1,12 @@
+README
+
+Late Coupons used : 3 for Friday, Saturday/Sunday, Monday
+
+
+Server Command Line Input: Port number that will be used to listen on, number of
+threads, size of connection array
+./server port numberOfThreads connectionArray
+
+Client Command Line Input: Server’s host name, port number and the number to be
+multiplied
+./client hostname portNumber numberToBeMultiplied
