@@ -11,11 +11,15 @@ typedef struct pageInfo{
   int used;
 
 }pageInfoEntry;
+
+
 int globalFrames;
 int globalFaults = 0;
 int isvalueinarray(int val, pageInfoEntry *arr, int size);
 void lru(pageInfoEntry *table, int currentframe);
 void lfu(pageInfoEntry *table, int currentframe);
+
+struct timeval currentTime;
 
 int main(int argc, char **argv)
 {
@@ -60,7 +64,6 @@ int main(int argc, char **argv)
 
   while ((read = getline(&line, &len, fp)) != -1) {
     traceStorage[i++] = atoi(line);
-    printf("%s", line);
   }
 
   pageInfoEntry *pageTable;
@@ -72,35 +75,31 @@ int main(int argc, char **argv)
     pageTable[i].used = 0;
   }
 
+
   //for each frame inside of traceStorage, loop through and store it to the pageTable, pageTable is teh size of number of frames example 4
-  int arrayIndexPostitionHolder = 0;
   for (size_t i = 0; i < pageTableSize; i++) {
-    //check to see if frame is in table
     int exists = isvalueinarray(traceStorage[i], pageTable, numberOfFrames);
-    //if not, add and increment fault
     if (exists == -1) {
       globalFaults++;
-      if (pageTable[i].used == 0) {
-        pageInfoEntry *entry = malloc(sizeof(pageInfoEntry));
-        pageTable[i].frameNumber = traceStorage[i];
-        pageTable[i].modified = (unsigned)time(NULL);
-        pageTable[i].used++;
+      for (size_t j = 0; j < numberOfFrames; j++) {
+        if (pageTable[j].used == 0) {
+          //pageInfoEntry *entry = malloc(sizeof(pageInfoEntry));
+          pageTable[i].frameNumber = traceStorage[i];
+          pageTable[i].modified = gettimeofday(&currentTime, NULL);//(unsigned)time(NULL);
+          pageTable[i].used++;
+        }else
+        if (!strcmp(typeOfResult, "lru")) {
+          lru(pageTable, traceStorage[i]);
+        }else
+        lfu(pageTable, traceStorage[i]);
       }
-      if (!strcmp(typeOfResult, "lru")) {
-        printf("lru\n");
-        lru(pageTable, traceStorage[i]);
-      }else
-      printf("lfu\n");
-      lfu(pageTable, traceStorage[i]);
     }
   }
   printf("%i\n", globalFaults);
-
   for (size_t i = 0; i < numberOfFrames; i++) {
     printf("%i\n", pageTable[i].frameNumber );
   }
 }
-
 
 int isvalueinarray(int val, pageInfoEntry *arr, int size){
   int i;
@@ -133,7 +132,7 @@ void lfu(pageInfoEntry *table, int currerntframe)
   }
   table[lu].frameNumber = currerntframe;
   table[lu].used = 1;
-  table[lu].modified = (unsigned)time(NULL);
+  table[lu].modified = gettimeofday(&currentTime, NULL);;//(unsigned)time(NULL);
 }
 
 
@@ -158,5 +157,6 @@ void lru(pageInfoEntry *table, int currentframe)
   }
   table[o].frameNumber = currentframe;
   table[o].used = 1;
-  table[o].modified = (unsigned)time(NULL);
+  table[o].modified = gettimeofday(&currentTime, NULL);//(unsigned)time(NULL);
 }
+
